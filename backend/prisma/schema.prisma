@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  company   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model PromotionType {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+  promotions  Promotion[]
+
+  @@map("promotion_types")
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  company   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("clients")
+}
+
+model Project {
+  id          Int         @id @default(autoincrement())
+  name        String
+  client      String
+  owner       String      @default("Growth Team")
+  description String?
+  clientUsers String[]    @default([]) @map("client_users")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  promotions  Promotion[]
+
+  @@map("projects")
+}
+
+model Promotion {
+  id               Int           @id @default(autoincrement())
+  projectId        Int           @map("project_id")
+  title            String
+  typeId           Int           @map("type")
+  scheduledDate    DateTime      @map("scheduled_date") @db.Date
+  status           Status        @default(Draft)
+  description      String?
+  subjectLine      String?       @map("subject_line")
+  contactList      String?       @map("contact_list")
+  captions         String[]      @default([])
+  currentVersionId Int?          @map("current_version_id")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  project          Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type             PromotionType @relation(fields: [typeId], references: [id])
+  versions         Version[]
+  comments         Comment[]
+  currentVersion   Version?      @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+
+  @@map("promotions")
+}
+
+model Version {
+  id          Int       @id @default(autoincrement())
+  promotionId Int       @map("promotion_id")
+  version     Int
+  label       String
+  fileName    String    @map("file_name")
+  fileType    FileType  @map("file_type")
+  uploadedBy  String    @map("uploaded_by")
+  uploadedAt  DateTime  @default(now()) @map("uploaded_at")
+  url         String?
+  htmlCode    String?
+  notes       String?
+
+  promotion           Promotion   @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  promotionAsCurrent  Promotion[] @relation("CurrentVersion")
+
+  @@map("versions")
+}
+
+model Comment {
+  id          Int      @id @default(autoincrement())
+  promotionId Int      @map("promotion_id")
+  authorId    Int?     @map("author_id")
+  author      String
+  role        Role
+  body        String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+enum Role {
+  super_admin
+  admin
+  client
+}
+
+enum Status {
+  Draft
+  Pending_Approval @map("Pending Approval")
+  Approved
+  Revision_Required @map("Revision Required")
+  Published
+}
+
+enum FileType {
+  image
+  pdf
+  html
+}
